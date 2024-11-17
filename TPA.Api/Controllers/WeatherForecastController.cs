@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using TPA.Api.Models;
 
 namespace TPA.Api.Controllers
 {
@@ -6,6 +7,8 @@ namespace TPA.Api.Controllers
     [Route("[controller]")]
     public class WeatherForecastController : ControllerBase
     {
+        private readonly ApplicationDbContext _dbContext;
+
         private static readonly string[] Summaries = new[]
         {
             "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
@@ -13,19 +16,24 @@ namespace TPA.Api.Controllers
 
         private readonly ILogger<WeatherForecastController> _logger;
 
-        public WeatherForecastController(ILogger<WeatherForecastController> logger)
+        public WeatherForecastController(
+            ILogger<WeatherForecastController> logger,
+            ApplicationDbContext dbContext)
         {
             _logger = logger;
+            this._dbContext = dbContext;
         }
 
         [HttpGet(Name = "GetWeatherForecast")]
         public IEnumerable<WeatherForecast> Get()
         {
-            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+            var listOfLists = _dbContext.Lists.ToList();
+
+            return listOfLists.Select(list => new WeatherForecast
             {
-                Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
+                Date = DateOnly.MaxValue,
                 TemperatureC = Random.Shared.Next(-20, 55),
-                Summary = Summaries[Random.Shared.Next(Summaries.Length)]
+                Summary = list.Name
             })
             .ToArray();
         }

@@ -1,6 +1,6 @@
-@TPA.Api_HostAddress = http://localhost:5253
+@TPA.Api._HostAddress = http://localhost:5253
 
-GET {{TPA.Api_HostAddress}}/weatherforecast/
+GET {{TPA.Api._HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
