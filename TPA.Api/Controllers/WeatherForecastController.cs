@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using TPA.Domain.Models;
+using TPA.Domain.Services.Interfaces;
 
 namespace TPA.Api.Controllers
 {
@@ -7,7 +8,7 @@ namespace TPA.Api.Controllers
     [Route("[controller]")]
     public class WeatherForecastController : ControllerBase
     {
-        private readonly ApplicationDbContext _dbContext;
+        private readonly IListsService _listsService;
 
         private static readonly string[] Summaries = new[]
         {
@@ -18,16 +19,16 @@ namespace TPA.Api.Controllers
 
         public WeatherForecastController(
             ILogger<WeatherForecastController> logger,
-            ApplicationDbContext dbContext)
+            IListsService listsService)
         {
             _logger = logger;
-            this._dbContext = dbContext;
+            this._listsService = listsService;
         }
 
         [HttpGet(Name = "GetWeatherForecast")]
         public IEnumerable<WeatherForecast> Get()
         {
-            var listOfLists = _dbContext.Lists.ToList();
+            var listOfLists = _listsService.GetLists().ToList();
 
             return listOfLists.Select(list => new WeatherForecast
             {
