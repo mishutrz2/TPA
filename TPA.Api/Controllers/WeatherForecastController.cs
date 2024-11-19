@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using TPA.Api.Models;
+using TPA.Domain.Models;
 
 namespace TPA.Api.Controllers
 {

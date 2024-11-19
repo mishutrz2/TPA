@@ -32,4 +32,8 @@
     <Folder Include="logs\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\TPA.Domain\TPA.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Enums;
 
-namespace TPA.Api.Models
+namespace TPA.Domain.Models
 {
     public class ApplicationUser : IdentityUser<Guid>
     {

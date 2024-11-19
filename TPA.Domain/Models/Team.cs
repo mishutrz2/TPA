@@ -1,4 +1,4 @@
-﻿namespace TPA.Api.Models
+﻿namespace TPA.Domain.Models
 {
     public class Team
     {

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-using TPA.Api.Models;
+using TPA.Domain.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 

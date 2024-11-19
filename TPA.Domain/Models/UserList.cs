@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
 
-namespace TPA.Api.Models
+namespace TPA.Domain.Models
 {
     public class UserList
     {
