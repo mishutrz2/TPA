@@ -26,5 +26,12 @@ namespace TPA.Domain.Services
         {
             return _context.Lists.Where(l => l.ListId == listId).FirstOrDefault();
         }
+
+        public void AddList(List list)
+        {
+            // TO DO validations and stuff
+            _context.Lists.Add(list);
+            _context.SaveChanges();
+        }
     }
 }

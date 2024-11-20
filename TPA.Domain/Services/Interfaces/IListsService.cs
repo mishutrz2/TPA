@@ -13,5 +13,7 @@ namespace TPA.Domain.Services.Interfaces
         IQueryable<List> GetLists();
 
         List? GetListById(Guid listId);
+
+        void AddList(List list);
     }
 }
