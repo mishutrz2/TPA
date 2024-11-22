@@ -14,7 +14,7 @@ namespace TPA.Domain.Services.Interfaces
 
         List? GetListById(Guid listId);
 
-        void AddList(List list);
+        List AddList(List list);
 
         void UpdateList(Guid listId, List updatedList);
 
