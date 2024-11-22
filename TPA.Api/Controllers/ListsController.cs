@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.JsonPatch;
+using Microsoft.AspNetCore.Mvc;
 using TPA.Api.ViewModels;
 using TPA.Domain.Models;
 using TPA.Domain.Services.Interfaces;
@@ -83,6 +84,83 @@ namespace TPA.Api.Controllers
             };
 
             return Ok(listViewModel);
+        }
+
+        [HttpPut("{listId}")]
+        public IActionResult UpdateList(Guid listId, [FromBody] ListViewModel updatedList)
+        {
+            if (updatedList == null)
+            {
+                return BadRequest("Invalid data.");
+            }
+
+            try
+            {
+                var listEntity = new List
+                {
+                    Name = updatedList.Name,
+                    Location = updatedList.Location,
+                    PasswordHash = updatedList.PasswordHash
+                };
+
+                _listsService.UpdateList(listId, listEntity);
+
+                return NoContent(); // 204 No Content
+            }
+            catch (Exception ex)
+            {
+                return NotFound(new { message = ex.Message }); // Return 404 if the list is not found
+            }
+        }
+
+        [HttpPatch("{listId}")]
+        public IActionResult UpdateListPartial(Guid listId, [FromBody] JsonPatchDocument<ListViewModel> patchDoc)
+        {
+            if (patchDoc == null)
+            {
+                return BadRequest("Invalid data.");
+            }
+
+            try
+            {
+                // Retrieve the existing list
+                var existingList = _listsService.GetListById(listId);
+                if (existingList == null)
+                {
+                    return NotFound(new { message = "List not found" });
+                }
+
+                // Apply the patch to the view model
+                var listViewModel = new ListViewModel
+                {
+                    Name = existingList.Name,
+                    Location = existingList.Location,
+                    PasswordHash = existingList.PasswordHash
+                };
+                patchDoc.ApplyTo(listViewModel, ModelState);
+
+                // Validate the patch
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                // Map the patched ViewModel back to the entity
+                var listEntity = new List
+                {
+                    Name = listViewModel.Name,
+                    Location = listViewModel.Location,
+                    PasswordHash = listViewModel.PasswordHash
+                };
+
+                _listsService.UpdateList(listId, listEntity);
+
+                return NoContent(); // 204 No Content
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
     }
 }

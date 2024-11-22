@@ -33,5 +33,41 @@ namespace TPA.Domain.Services
             _context.Lists.Add(list);
             _context.SaveChanges();
         }
+
+        public void UpdateList(Guid listId, List updatedList)
+        {
+            var existingList = _context.Lists.Find(listId);
+            if (existingList == null)
+            {
+                throw new Exception("List not found");
+            }
+
+            existingList.Name = updatedList.Name;
+            existingList.Location = updatedList.Location;
+            existingList.PasswordHash = updatedList.PasswordHash;
+
+            _context.SaveChanges();
+        }
+
+        public void UpdateListPartial(Guid listId, Dictionary<string, object> updates)
+        {
+            var existingList = _context.Lists.Find(listId);
+            if (existingList == null)
+            {
+                throw new Exception("List not found");
+            }
+
+            // Dynamically apply updates
+            foreach (var update in updates)
+            {
+                var propertyInfo = typeof(List).GetProperty(update.Key);
+                if (propertyInfo != null)
+                {
+                    propertyInfo.SetValue(existingList, update.Value);
+                }
+            }
+
+            _context.SaveChanges();
+        }
     }
 }
