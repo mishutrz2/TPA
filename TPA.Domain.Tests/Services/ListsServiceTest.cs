@@ -50,7 +50,7 @@ public class ListsServiceTests
     }
 
     [Fact]
-    public async Task GetListById_ShouldReturnNull_WhenListDoesNotExist()
+    public Task GetListById_ShouldReturnNull_WhenListDoesNotExist()
     {
         // Arrange
         var nonExistentListId = Guid.NewGuid();
@@ -66,10 +66,12 @@ public class ListsServiceTests
 
         // Assert
         Assert.Null(result);
+
+        return Task.CompletedTask;
     }
 
     [Fact]
-    public async Task CreateList_ShouldReturnCreatedList()
+    public Task CreateList_ShouldReturnCreatedList()
     {
         // Arrange
         var newList = new List
@@ -92,5 +94,7 @@ public class ListsServiceTests
         Assert.NotNull(result);
         Assert.Equal(newList.Name, result.Name);
         Assert.Equal(newList.Location, result.Location);
+
+        return Task.CompletedTask;
     }
 }
