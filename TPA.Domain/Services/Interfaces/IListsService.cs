@@ -19,5 +19,7 @@ namespace TPA.Domain.Services.Interfaces
         void UpdateList(Guid listId, List updatedList);
 
         void UpdateListPartial(Guid listId, Dictionary<string, object> updates);
+
+        IEnumerable<ApplicationUser> GetUsersFromListWithId(Guid listId);
     }
 }

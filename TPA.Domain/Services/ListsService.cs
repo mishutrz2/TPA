@@ -71,5 +71,10 @@ namespace TPA.Domain.Services
 
             _context.SaveChanges();
         }
+
+        public IEnumerable<ApplicationUser> GetUsersFromListWithId(Guid listId)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
