@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.JsonPatch;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using TPA.Api.ViewModels;
 using TPA.Domain.Models;
@@ -21,6 +22,7 @@ namespace TPA.Api.Controllers
             this._listsService = listsService;
         }
 
+        [Authorize]
         [HttpGet]
         public IActionResult Get()
         {
@@ -37,6 +39,7 @@ namespace TPA.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize]
         [HttpPost]
         public IActionResult AddList([FromBody] ListViewModel newList)
         {
