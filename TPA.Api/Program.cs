@@ -62,8 +62,6 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddAuthorization();
 
-
-
 // for Serilog logging
 builder.Host.UseSerilog((context, configuration) => configuration.ReadFrom.Configuration(context.Configuration));
 
