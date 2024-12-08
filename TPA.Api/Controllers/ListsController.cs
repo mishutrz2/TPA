@@ -22,7 +22,6 @@ namespace TPA.Api.Controllers
             this._listsService = listsService;
         }
 
-        [Authorize]
         [HttpGet]
         public IActionResult Get()
         {
