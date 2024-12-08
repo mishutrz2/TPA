@@ -88,6 +88,7 @@ namespace TPA.Api.Controllers
             return Ok(listViewModel);
         }
 
+        [Authorize]
         [HttpPut("{listId}")]
         public IActionResult UpdateList(Guid listId, [FromBody] ListViewModel updatedList)
         {
@@ -115,6 +116,7 @@ namespace TPA.Api.Controllers
             }
         }
 
+        [Authorize]
         [HttpPatch("{listId}")]
         public IActionResult UpdateListPartial(Guid listId, [FromBody] JsonPatchDocument<ListViewModel> patchDoc)
         {
