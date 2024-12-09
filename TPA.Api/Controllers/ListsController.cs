@@ -9,6 +9,7 @@ namespace TPA.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class ListsController : ControllerBase
     {
         private readonly IListsService _listsService;
@@ -22,6 +23,7 @@ namespace TPA.Api.Controllers
             this._listsService = listsService;
         }
 
+        [AllowAnonymous]
         [HttpGet]
         public IActionResult Get()
         {
@@ -38,7 +40,6 @@ namespace TPA.Api.Controllers
             return Ok(result);
         }
 
-        [Authorize]
         [HttpPost]
         public IActionResult AddList([FromBody] ListViewModel newList)
         {
@@ -67,6 +68,7 @@ namespace TPA.Api.Controllers
             }
         }
 
+        [AllowAnonymous]
         [HttpGet("{listId}")]
         public IActionResult GetList(Guid listId)
         {
@@ -88,7 +90,6 @@ namespace TPA.Api.Controllers
             return Ok(listViewModel);
         }
 
-        [Authorize]
         [HttpPut("{listId}")]
         public IActionResult UpdateList(Guid listId, [FromBody] ListViewModel updatedList)
         {
@@ -116,7 +117,6 @@ namespace TPA.Api.Controllers
             }
         }
 
-        [Authorize]
         [HttpPatch("{listId}")]
         public IActionResult UpdateListPartial(Guid listId, [FromBody] JsonPatchDocument<ListViewModel> patchDoc)
         {
