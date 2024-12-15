@@ -68,6 +68,7 @@ namespace TPA.Api.Controllers
             }
         }
 
+        [AllowAnonymous]
         [HttpGet("{listId}")]
         public IActionResult GetList(Guid listId)
         {
