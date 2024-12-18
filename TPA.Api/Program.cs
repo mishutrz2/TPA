@@ -7,6 +7,10 @@ using TPA.Domain.Services;
 using TPA.Domain.Services.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Azure.Identity;
+using Azure.Security.KeyVault.Keys.Cryptography;
+using Azure.Security.KeyVault.Keys;
+using System.Security.Cryptography;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,18 +23,37 @@ builder.Services.AddControllers().AddNewtonsoftJson();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+// Load configuration
 var config = builder.Configuration;
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString),
     ServiceLifetime.Transient);
 
+// Azure Key Vault setup
+var keyVaultUrl = config["AzureKeyVault:VaultUrl"];
+var rsaKeyName = config["AzureKeyVault:KeyName"];
+
+// Configure Azure Key Vault client
+var keyClient = new KeyClient(new Uri(keyVaultUrl!), new DefaultAzureCredential());
+var rsaKey = keyClient.GetKey(rsaKeyName).Value;
+
+// Cryptography client for signing tokens
+var cryptoClient = new CryptographyClient(new Uri($"{keyVaultUrl}/keys/{rsaKeyName}"), new DefaultAzureCredential());
+builder.Services.AddSingleton(cryptoClient);
+
 // Create TokenValidationParameters
 var tokenValidationParameters = new TokenValidationParameters
 {
     ValidateIssuerSigningKey = true,
-    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtSettings:Secret"]!)), // Use a strong key
+
+    // HMAC Symmetric
+    // IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtSettings:Secret"]!)), // Use a strong key
+
+    // RSA Asymmetric
+    IssuerSigningKey = new RsaSecurityKey(rsaKey.Key.ToRSA(false)),
 
     ValidateIssuer = true,
     ValidIssuer = config["JwtSettings:Issuer"],
@@ -41,6 +64,7 @@ var tokenValidationParameters = new TokenValidationParameters
     ValidateLifetime = true,
     ClockSkew = TimeSpan.Zero,
 };
+
 builder.Services.AddSingleton(tokenValidationParameters);
 
 // Use AddIdentity to include both user and role management

@@ -1,8 +1,12 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Azure.Identity;
+using Azure.Security.KeyVault.Keys;
+using Azure.Security.KeyVault.Keys.Cryptography;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json;
 using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -125,56 +129,88 @@ public class AuthenticationController : ControllerBase
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        // HMAC Symmetric
-        // var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:Secret"]));
-        // var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        // JWT Header
+        var header = new JwtHeader(new SigningCredentials(new RsaSecurityKey(GetPrivateKeyFromAzureKeyVault().Result), SecurityAlgorithms.RsaSha256));
 
-        // RSA Asymmetric
-        var rsaKey = RSA.Create();
-        // to be continued ...
+        // JWT Payload
+        var payload = new JwtPayload(
+            _configuration["JwtSettings:Issuer"],
+            _configuration["JwtSettings:Audience"],
+            claims,
+            DateTime.Now,
+            DateTime.Now.AddMinutes(10) // Set expiration as needed
+        );
 
-        var token = new JwtSecurityToken(
-            issuer: _configuration["JwtSettings:Issuer"],
-            audience: _configuration["JwtSettings:Audience"],
-            claims: claims,
-            expires: DateTime.Now.AddMinutes(10),
-            signingCredentials: creds);
+        // Base64 URL encode the header and payload
+        var headerBase64 = Base64UrlEncode(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(header)));
+        var payloadBase64 = Base64UrlEncode(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(payload)));
 
-        var jwtToken = new JwtSecurityTokenHandler().WriteToken(token);
+        // Combine the header and payload to form the data to be signed
+        var dataToSign = headerBase64 + "." + payloadBase64;
+
+        // Get private RSA key from Azure Key Vault for signing
+        var keyClient = new KeyClient(new Uri(_configuration["AzureKeyVault:VaultUrl"]!), new DefaultAzureCredential());
+        var rsaKey = keyClient.GetKey(_configuration["AzureKeyVault:KeyName"]).Value;
+        var cryptoClient = new CryptographyClient(new Uri($"{_configuration["AzureKeyVault:VaultUrl"]}/keys/{_configuration["AzureKeyVault:KeyName"]}"), new DefaultAzureCredential());
+
+        // Sign the JWT data using the private RSA key
+        var signResult = await cryptoClient.SignAsync(SignatureAlgorithm.RS256, Encoding.UTF8.GetBytes(dataToSign));
+
+        // Combine the signed data with the signature to form the final JWT
+        var finalJwt = dataToSign + "." + Base64UrlEncode(signResult.Signature);
+
+        // Return the JWT token
+        var jwtToken = finalJwt;
 
         if (rToken != null)
         {
-            var rTokenResponse = new AuthResultModel()
+            return new AuthResultModel()
             {
                 Token = jwtToken,
                 RefreshToken = rToken.Token,
-                ExpiresAt = token.ValidTo
+                ExpiresAt = DateTime.UtcNow.AddMinutes(10)
             };
-
-            return rTokenResponse;
         }
 
+        // Generate and return a new refresh token
         var refreshToken = new RefreshToken()
         {
-            JwtId = token.Id,
+            JwtId = Guid.NewGuid().ToString(),
             IsRevoked = false,
             UserId = user.Id,
             DateAdded = DateTime.UtcNow,
             DateExpire = DateTime.UtcNow.AddMonths(6),
-            Token = Guid.NewGuid().ToString()+"-"+Guid.NewGuid().ToString(),
+            Token = Guid.NewGuid().ToString() + "-" + Guid.NewGuid().ToString(),
         };
 
         await _context.RefreshTokens.AddAsync(refreshToken);
         await _context.SaveChangesAsync();
 
-        var response = new AuthResultModel()
+        return new AuthResultModel()
         {
             Token = jwtToken,
             RefreshToken = refreshToken.Token,
-            ExpiresAt = token.ValidTo
+            ExpiresAt = DateTime.UtcNow.AddMinutes(10)
         };
+    }
 
-        return response;
+    public static string Base64UrlEncode(byte[] input)
+    {
+        var base64 = Convert.ToBase64String(input);
+        return base64
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
+    }
+
+    private async Task<RSA> GetPrivateKeyFromAzureKeyVault()
+    {
+        // Get private RSA key from Azure Key Vault
+        var keyClient = new KeyClient(new Uri(_configuration["AzureKeyVault:VaultUrl"]!), new DefaultAzureCredential());
+        var rsaKey = await keyClient.GetKeyAsync(_configuration["AzureKeyVault:KeyName"]);
+
+        // Convert to RSA
+        return rsaKey.Value.Key.ToRSA(true);  // 'true' means we want the private key
     }
 }
 
