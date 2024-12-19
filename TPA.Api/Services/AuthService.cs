@@ -73,8 +73,9 @@ namespace TPA.Api.Services
         private async Task GeneratetokensAndUpdatetSataBase(AuthResultModel response, ApplicationUser? identityUser)
         {
             response.IsLogedIn = true;
-            response.JwtToken = this.GenerateTokenString(identityUser!.Email!);
+            response.JwtToken = this.GenerateTokenString(identityUser!.UserName!);
             response.RefreshToken = this.GenerateRefreshTokenString();
+            response.ExpiresAt = DateTime.Now.AddMinutes(10);
 
             identityUser.RefreshToken = response.RefreshToken;
             identityUser.RefreshTokenExpiry = DateTime.Now.AddHours(12);
@@ -127,6 +128,8 @@ namespace TPA.Api.Services
             var signingCred = new SigningCredentials(rsaSecurityKey, SecurityAlgorithms.RsaSha256);
 
             var securityToken = new JwtSecurityToken(
+                issuer: _config["JwtSettings:Issuer"],
+                audience: _config["JwtSettings:Audience"],
                 claims: claims,
                 expires: DateTime.Now.AddMinutes(10),
                 signingCredentials: signingCred
