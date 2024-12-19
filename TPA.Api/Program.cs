@@ -35,7 +35,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString),
     ServiceLifetime.Transient);
 
-/*// Azure Key Vault setup
+// Azure Key Vault setup
 var keyVaultUrl = config["AzureKeyVault:VaultUrl"];
 var rsaKeyName = config["AzureKeyVault:KeyName"];
 
@@ -45,12 +45,12 @@ var rsaKey = keyClient.GetKey(rsaKeyName).Value;
 
 // Cryptography client for signing tokens
 var cryptoClient = new CryptographyClient(new Uri($"{keyVaultUrl}/keys/{rsaKeyName}"), new DefaultAzureCredential());
-builder.Services.AddSingleton(cryptoClient);*/
+builder.Services.AddSingleton(cryptoClient);
 
-// RSA with key from file
+/*// RSA with key from file
 var localRsaKey = RSA.Create();
 string xmlKey = File.ReadAllText(config["JwtSettings:PrivateKeyPath"]!);
-localRsaKey.FromXmlString(xmlKey);
+localRsaKey.FromXmlString(xmlKey);*/
 
 // Create TokenValidationParameters
 var tokenValidationParameters = new TokenValidationParameters
@@ -60,10 +60,10 @@ var tokenValidationParameters = new TokenValidationParameters
     // HMAC Symmetric
     // IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtSettings:Secret"]!)), // Use a strong key
 
-    /*// RSA Asymmetric - Azure Key Vault
-    IssuerSigningKey = new RsaSecurityKey(rsaKey.Key.ToRSA(true)), // 'true' means we want the private key*/
+    // RSA Asymmetric - Azure Key Vault
+    IssuerSigningKey = new RsaSecurityKey(rsaKey.Key.ToRSA(true)), // 'true' means we want the private key
 
-    IssuerSigningKey = new RsaSecurityKey(localRsaKey),
+    /*IssuerSigningKey = new RsaSecurityKey(localRsaKey),*/
 
     ValidateIssuer = true,
     ValidIssuer = config["JwtSettings:Issuer"],

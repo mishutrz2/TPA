@@ -1,10 +1,13 @@
 ﻿using Azure.Identity;
 using Azure.Security.KeyVault.Keys;
+using Azure.Security.KeyVault.Keys.Cryptography;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text;
 using TPA.Api.Services.Interfaces;
 using TPA.Domain.Models;
 
@@ -50,7 +53,7 @@ namespace TPA.Api.Services
 
         public async Task<AuthResultModel> RefreshToken(TokenRequestModel model)
         {
-            var principal = GetTokenPrincipal(model.JwtToken);
+            var principal = await GetTokenPrincipal(model.JwtToken);
 
             var response = new AuthResultModel();
             if (principal?.Identity?.Name is null)
@@ -71,7 +74,7 @@ namespace TPA.Api.Services
         private async Task GeneratetokensAndUpdatetSataBase(AuthResultModel response, ApplicationUser? identityUser)
         {
             response.IsLogedIn = true;
-            response.JwtToken = this.GenerateTokenString(identityUser!.UserName!);
+            response.JwtToken = await this.GenerateTokenString(identityUser!.UserName!);
             response.RefreshToken = this.GenerateRefreshTokenString();
             response.ExpiresAt = DateTime.Now.AddMinutes(10);
 
@@ -92,11 +95,11 @@ namespace TPA.Api.Services
             return Convert.ToBase64String(randomNumber);
         }
 
-        private ClaimsPrincipal? GetTokenPrincipal(string token)
+        private async Task<ClaimsPrincipal?> GetTokenPrincipal(string token)
         {
             //var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config.GetSection("Jwt:Key").Value));
 
-            var securityKey = GetRsaKey();
+            var securityKey = await GetPrivateKeyFromAzureKeyVault();
 
             var validation = new TokenValidationParameters
             {
@@ -110,7 +113,7 @@ namespace TPA.Api.Services
             return new JwtSecurityTokenHandler().ValidateToken(token, validation, out _);
         }
 
-        private string GenerateTokenString(string userName)
+        private async Task<string> GenerateTokenString(string userName)
         {
             var claims = new List<Claim>
             {
@@ -122,18 +125,54 @@ namespace TPA.Api.Services
             //var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(staticKey));
             //var signingCred = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256Signature);
 
-            RsaSecurityKey rsaSecurityKey = GetRsaKey();
+            RsaSecurityKey rsaSecurityKey = await GetPrivateKeyFromAzureKeyVault();
             var signingCred = new SigningCredentials(rsaSecurityKey, SecurityAlgorithms.RsaSha256);
 
-            var securityToken = new JwtSecurityToken(
+            /*var securityToken = new JwtSecurityToken(
                 issuer: _config["JwtSettings:Issuer"],
                 audience: _config["JwtSettings:Audience"],
                 claims: claims,
                 expires: DateTime.Now.AddMinutes(10),
                 signingCredentials: signingCred
-                );
+                );*/
 
-            string tokenString = new JwtSecurityTokenHandler().WriteToken(securityToken);
+            // JWT Header
+            var header = new JwtHeader(signingCred);
+
+            // JWT Payload
+            var payload = new JwtPayload(
+                _config["JwtSettings:Issuer"],
+                _config["JwtSettings:Audience"],
+                claims,
+                DateTime.Now,
+                DateTime.Now.AddMinutes(10) // Set expiration as needed
+            );
+
+            // Base64 URL encode the header and payload
+            var headerBase64 = Base64UrlEncoder.Encode(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(header)));
+            var payloadBase64 = Base64UrlEncoder.Encode(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(payload)));
+            
+            // Combine the header and payload to form the data to be signed
+            var dataToSign = headerBase64 + "." + payloadBase64;
+
+            // Convert the signing input to bytes
+            byte[] signingInputBytes = Encoding.UTF8.GetBytes(dataToSign);
+
+            // Compute the SHA-256 hash
+            byte[] hash = SHA256.HashData(signingInputBytes);
+
+            // Get private RSA key from Azure Key Vault for signing
+            var keyClient = new KeyClient(new Uri(_config["AzureKeyVault:VaultUrl"]!), new DefaultAzureCredential());
+            var rsaKey = keyClient.GetKey(_config["AzureKeyVault:KeyName"]).Value;
+            var cryptoClient = new CryptographyClient(new Uri($"{_config["AzureKeyVault:VaultUrl"]}/keys/{_config["AzureKeyVault:KeyName"]}"), new DefaultAzureCredential());
+
+            // Sign the JWT data using the private RSA key
+            var signResult = await cryptoClient.SignAsync(SignatureAlgorithm.RS256, hash);
+
+            // Combine the signed data with the signature to form the final JWT
+            var tokenString = dataToSign + "." + Base64UrlEncoder.Encode(signResult.Signature);
+
+            //string tokenString = new JwtSecurityTokenHandler().WriteToken(securityToken);
             return tokenString;
         }
 
@@ -146,15 +185,23 @@ namespace TPA.Api.Services
             return rsaSecurityKey;
         }
 
-        private async Task<RSA> GetPrivateKeyFromAzureKeyVault()
+        private async Task<RsaSecurityKey> GetPrivateKeyFromAzureKeyVault()
         {
             // Get private RSA key from Azure Key Vault
             var keyClient = new KeyClient(new Uri(_config["AzureKeyVault:VaultUrl"]!), new DefaultAzureCredential());
-            var rsaKey = await keyClient.GetKeyAsync(_config["AzureKeyVault:KeyName"]);
-
-            // Convert to RSA
-            return rsaKey.Value.Key.ToRSA(true);  // 'true' means we want the private key
+            var vaultRsaKey = await keyClient.GetKeyAsync(_config["AzureKeyVault:KeyName"]);
+            var rsaKey = new RsaSecurityKey(vaultRsaKey.Value.Key.ToRSA(true)); // 'true' means we want the private key
+            return rsaKey;
         }
+
+        /*private string Base64UrlEncode(byte[] input)
+        {
+            var base64 = Convert.ToBase64String(input);
+            return base64
+                .Replace('+', '-')
+                .Replace('/', '_')
+                .TrimEnd('=');
+        }*/
 
         #endregion
     }
