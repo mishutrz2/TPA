@@ -13,7 +13,6 @@ namespace TPA.Domain.Models
         public DbSet<UserList> UserLists { get; set; }
         public DbSet<UserTeam> UserTeams { get; set; }
         public DbSet<MatchDayTeam> MatchDayTeams { get; set; }
-        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

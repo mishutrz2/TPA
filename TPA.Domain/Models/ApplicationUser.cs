@@ -5,6 +5,10 @@ namespace TPA.Domain.Models
 {
     public class ApplicationUser : IdentityUser<Guid>
     {
+        public string? RefreshToken { get; set; }
+
+        public DateTime RefreshTokenExpiry { get; set; }
+
         public string? Nickname { get; set; }
 
         public DateOnly DateOfBirth { get; set; }

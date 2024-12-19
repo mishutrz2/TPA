@@ -11,11 +11,14 @@ using Azure.Identity;
 using Azure.Security.KeyVault.Keys.Cryptography;
 using Azure.Security.KeyVault.Keys;
 using System.Security.Cryptography;
+using TPA.Api.Services.Interfaces;
+using TPA.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddScoped<IListsService, ListsService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddControllers().AddNewtonsoftJson();
 

@@ -7,11 +7,11 @@ using Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
-using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using TPA.Api.Services.Interfaces;
 using TPA.Domain.Models;
 
 [Route("api/[controller]")]
@@ -24,21 +24,35 @@ public class AuthenticationController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly TokenValidationParameters _tokenValidationParameters;
 
+    private readonly IAuthService _authService;
+
     public AuthenticationController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         IConfiguration configuration,
-        TokenValidationParameters tokenValidationParameters)
+        TokenValidationParameters tokenValidationParameters,
+        IAuthService authService)
     {
         _context = context;
         _userManager = userManager;
         _signInManager = signInManager;
         _configuration = configuration;
         _tokenValidationParameters = tokenValidationParameters;
+        _authService = authService;
     }
 
-    [HttpPost("login")]
+    [HttpPost("register")]
+    public async Task<IActionResult> RegisterUser(RegisterModel user)
+    {
+        if (await _authService.RegisterUser(user))
+        {
+            return Ok("Successfully done");
+        }
+        return BadRequest("Something went wrong");
+    }
+
+    /*[HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginModel loginModel)
     {
         if (!ModelState.IsValid)
@@ -61,27 +75,24 @@ public class AuthenticationController : ControllerBase
 
         var token = await GenerateJwtTokenAsync(user, null);
         return Ok(token);
-    }
+    }*/
 
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterModel registerModel)
+    [HttpPost("login")]
+    public async Task<IActionResult> Login(LoginModel user)
     {
-        var user = new ApplicationUser
+        if (!ModelState.IsValid)
         {
-            UserName = registerModel.Username,
-            Email = registerModel.Email
-        };
-
-        var result = await _userManager.CreateAsync(user, registerModel.Password);
-        if (!result.Succeeded)
-        {
-            return BadRequest(result.Errors);
+            return BadRequest();
         }
-
-        return Ok(new { Message = "Registration successful" });
+        var loginResult = await _authService.Login(user);
+        if (loginResult.IsLogedIn)
+        {
+            return Ok(loginResult);
+        }
+        return Unauthorized();
     }
 
-    [HttpPost("refresh-token")]
+    /*[HttpPost("refresh-token")]
     public async Task<IActionResult> RefreshToken([FromBody] TokenRequestModel tokenRequestModel)
     {
         if (!ModelState.IsValid)
@@ -91,9 +102,21 @@ public class AuthenticationController : ControllerBase
 
         var result = await VerifyAndGenerateTokenAsync(tokenRequestModel);
         return Ok(result);
+    }*/
+
+    [HttpPost("refresh-token")]
+    public async Task<IActionResult> RefreshToken(TokenRequestModel model)
+    {
+
+        var loginResult = await _authService.RefreshToken(model);
+        if (loginResult.IsLogedIn)
+        {
+            return Ok(loginResult);
+        }
+        return Unauthorized();
     }
 
-    private async Task<AuthResultModel> VerifyAndGenerateTokenAsync(TokenRequestModel tokenRequestModel)
+    /*private async Task<AuthResultModel> VerifyAndGenerateTokenAsync(TokenRequestModel tokenRequestModel)
     {
         var jwtTokenHandler = new JwtSecurityTokenHandler();
         var storedToken = await _context.RefreshTokens.FirstOrDefaultAsync(x => x.Token == tokenRequestModel.RefreshToken);
@@ -192,52 +215,5 @@ public class AuthenticationController : ControllerBase
             RefreshToken = refreshToken.Token,
             ExpiresAt = DateTime.UtcNow.AddMinutes(10)
         };
-    }
-
-    public static string Base64UrlEncode(byte[] input)
-    {
-        var base64 = Convert.ToBase64String(input);
-        return base64
-            .Replace('+', '-')
-            .Replace('/', '_')
-            .TrimEnd('=');
-    }
-
-    private async Task<RSA> GetPrivateKeyFromAzureKeyVault()
-    {
-        // Get private RSA key from Azure Key Vault
-        var keyClient = new KeyClient(new Uri(_configuration["AzureKeyVault:VaultUrl"]!), new DefaultAzureCredential());
-        var rsaKey = await keyClient.GetKeyAsync(_configuration["AzureKeyVault:KeyName"]);
-
-        // Convert to RSA
-        return rsaKey.Value.Key.ToRSA(true);  // 'true' means we want the private key
-    }
-}
-
-public class LoginModel
-{
-    public string Username { get; set; }
-    public string Password { get; set; }
-}
-
-public class RegisterModel
-{
-    public string Username { get; set; }
-    public string Email { get; set; }
-    public string Password { get; set; }
-}
-
-public class AuthResultModel
-{
-    public string Token { get; set; }
-    public string RefreshToken { get; set; }
-    public DateTime ExpiresAt { get; set; }
-}
-
-public class TokenRequestModel
-{
-    [Required]
-    public string Token { get; set; }
-    [Required]
-    public string RefreshToken { get; set; }
+    }*/
 }
