@@ -66,8 +66,6 @@ namespace TPA.Api.Services
             return response;
         }
 
-
-
         #region PRIVATE
 
         private async Task GeneratetokensAndUpdatetSataBase(AuthResultModel response, ApplicationUser? identityUser)
