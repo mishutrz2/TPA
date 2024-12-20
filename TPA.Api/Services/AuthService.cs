@@ -17,11 +17,15 @@ namespace TPA.Api.Services
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IConfiguration _config;
+        private readonly CryptographyClient _cryptoClient;
+        private readonly KeyClient _keyClient;
 
-        public AuthService(UserManager<ApplicationUser> userManager, IConfiguration config)
+        public AuthService(UserManager<ApplicationUser> userManager, IConfiguration config, CryptographyClient cryptoClient, KeyClient keyClient)
         {
             _userManager = userManager;
             _config = config;
+            _cryptoClient = cryptoClient;
+            _keyClient = keyClient;
         }
 
         public async Task<bool> RegisterUser(RegisterModel user)
@@ -121,20 +125,8 @@ namespace TPA.Api.Services
                 new Claim(ClaimTypes.Role,"Admin"),
             };
 
-            //var staticKey = _config.GetSection("Jwt:Key").Value;
-            //var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(staticKey));
-            //var signingCred = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256Signature);
-
             RsaSecurityKey rsaSecurityKey = await GetPrivateKeyFromAzureKeyVault();
             var signingCred = new SigningCredentials(rsaSecurityKey, SecurityAlgorithms.RsaSha256);
-
-            /*var securityToken = new JwtSecurityToken(
-                issuer: _config["JwtSettings:Issuer"],
-                audience: _config["JwtSettings:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddMinutes(10),
-                signingCredentials: signingCred
-                );*/
 
             // JWT Header
             var header = new JwtHeader(signingCred);
@@ -161,18 +153,12 @@ namespace TPA.Api.Services
             // Compute the SHA-256 hash
             byte[] hash = SHA256.HashData(signingInputBytes);
 
-            // Get private RSA key from Azure Key Vault for signing
-            var keyClient = new KeyClient(new Uri(_config["AzureKeyVault:VaultUrl"]!), new DefaultAzureCredential());
-            var rsaKey = keyClient.GetKey(_config["AzureKeyVault:KeyName"]).Value;
-            var cryptoClient = new CryptographyClient(new Uri($"{_config["AzureKeyVault:VaultUrl"]}/keys/{_config["AzureKeyVault:KeyName"]}"), new DefaultAzureCredential());
-
             // Sign the JWT data using the private RSA key
-            var signResult = await cryptoClient.SignAsync(SignatureAlgorithm.RS256, hash);
+            var signResult = await _cryptoClient.SignAsync(SignatureAlgorithm.RS256, hash);
 
             // Combine the signed data with the signature to form the final JWT
             var tokenString = dataToSign + "." + Base64UrlEncoder.Encode(signResult.Signature);
 
-            //string tokenString = new JwtSecurityTokenHandler().WriteToken(securityToken);
             return tokenString;
         }
 
@@ -188,20 +174,10 @@ namespace TPA.Api.Services
         private async Task<RsaSecurityKey> GetPrivateKeyFromAzureKeyVault()
         {
             // Get private RSA key from Azure Key Vault
-            var keyClient = new KeyClient(new Uri(_config["AzureKeyVault:VaultUrl"]!), new DefaultAzureCredential());
-            var vaultRsaKey = await keyClient.GetKeyAsync(_config["AzureKeyVault:KeyName"]);
+            var vaultRsaKey = await _keyClient.GetKeyAsync(_config["AzureKeyVault:KeyName"]);
             var rsaKey = new RsaSecurityKey(vaultRsaKey.Value.Key.ToRSA(true)); // 'true' means we want the private key
             return rsaKey;
         }
-
-        /*private string Base64UrlEncode(byte[] input)
-        {
-            var base64 = Convert.ToBase64String(input);
-            return base64
-                .Replace('+', '-')
-                .Replace('/', '_')
-                .TrimEnd('=');
-        }*/
 
         #endregion
     }

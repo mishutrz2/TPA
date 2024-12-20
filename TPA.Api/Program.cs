@@ -41,6 +41,8 @@ var rsaKeyName = config["AzureKeyVault:KeyName"];
 
 // Configure Azure Key Vault client
 var keyClient = new KeyClient(new Uri(keyVaultUrl!), new DefaultAzureCredential());
+builder.Services.AddSingleton(keyClient);
+
 var rsaKey = keyClient.GetKey(rsaKeyName).Value;
 
 // Cryptography client for signing tokens
